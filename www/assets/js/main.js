@@ -1,99 +1,170 @@
 "use strict";
-// initialize Hoodie
+
 var hoodie  = new Hoodie();
 
-// Todos Collection/View
-function Todos($element) {
-  var collection = [];
-  var $el = $element;
+hoodie.account.on('signup', function (user) {
+  setUsername();
+  showMyNotes();
+  $('#lnkSignUp').hide();
+  $('#lnkSignIn').hide();
+});
 
-  // Handle marking todo as "done"
-  $el.on('click', 'input[type=checkbox]', function() {
-    hoodie.store.remove('todo', $(this).parent().data('id'));
-    return false;
-  });
+hoodie.account.on('signin', function (user) {
+  hideElements()
+  setUsername();
+  showMyNotes();
+  $('#lnkSignUp').hide();
+  $('#lnkSignIn').hide();
+});
 
-  // Handle "inline editing" of a todo.
-  $el.on('click', 'label', function() {
-    $(this).parent().parent().find('.editing').removeClass('editing');
-    $(this).parent().addClass('editing');
-    return false;
-  });
+hoodie.account.on('signout', function (user) {
+  hideElements()
+  $('.jumbotron').show();
+  $('#lnkSignUp').show();
+  $('#lnkSignIn').show();
+});
 
-  // Handle updating of an "inline edited" todo.
-  $el.on('keypress', 'input[type=text]', function(event) {
-    if (event.keyCode === 13) {
-      hoodie.store.update('todo', $(this).parent().data('id'), {title: event.target.value});
-    }
-  });
-
-  // Find index/position of a todo in collection.
-  function getTodoItemIndexById(id) {
-    for (var i = 0, len = collection.length; i < len; i++) {
-      if (collection[i].id === id) {
-        return i;
-      }
-    }
-    return null;
-  }
-
-  function paint() {
-    $el.html('');
-    collection.sort(function(a, b) {
-      return ( a.createdAt > b.createdAt ) ? 1 : -1;
-    });
-    for (var i = 0, len = collection.length; i<len; i++) {
-      $el.append(
-        '<li data-id="' + collection[i].id + '">' +
-          '<input type="checkbox"> <label>' + collection[i].title + '</label>' +
-          '<input type="text" value="' + collection[i].title + '"/>' +
-        '</li>'
-      );
-    }
-  }
-
-  this.add = function(todo) {
-    collection.push(todo);
-    paint();
-  };
-
-  this.update = function(todo) {
-    collection[getTodoItemIndexById(todo.id)] = todo;
-    paint();
-  };
-
-  this.remove = function(todo) {
-    collection.splice(getTodoItemIndexById(todo.id), 1);
-    paint();
-  };
-
-  this.clear = function() {
-    collection = [];
-    paint();
-  };
+function setUsername() {
+  $('#headerUser a:first').html(hoodie.account.username + " <span class='caret'></span>");
+  $('#headerUser').removeClass('hidden');
+  $('#headerMynotes').removeClass('hidden');
 }
 
-// Instantiate Todos collection & view.
-var todos = new Todos($('#todolist'));
-
-// initial load of all todo items from the store
-hoodie.store.findAll('todo').then(function(allTodos) {
-  allTodos.forEach(todos.add);
-});
-
-// when a todo changes, update the UI.
-hoodie.store.on('add:todo', todos.add);
-hoodie.store.on('update:todo', todos.update);
-hoodie.store.on('remove:todo', todos.remove);
-// clear todos when user logs out,
-hoodie.account.on('signout', todos.clear);
-
-
-// handle creating a new task
-$('#todoinput').on('keypress', function(event) {
-  // ENTER & non-empty.
-  if (event.keyCode === 13 && event.target.value.length) {
-    hoodie.store.add('todo', {title: event.target.value});
-    event.target.value = '';
+$(function(){
+  registerHomeEvents();
+  registerMyNotes();
+  registerMenuEvents()
+  if (hoodie.account.username) {
+    setUsername();
+    $('#lnkSignUp').hide();
+    $('#lnkSignIn').hide();
   }
 });
+
+function registerMenuEvents() {
+  $('#menuHome').click(showHome);
+  $('#menuMyNotes').click(showMyNotes);
+  $('#logout').click(logout);
+}
+
+function registerHomeEvents() {
+  $('#btnSignUp').click(signUp);
+  $('#btnSignIn').click(signIn);
+  $('#lnkSignUp').click(showSignUp);
+  $('#lnkSignIn').click(showSignIn);
+}
+
+function registerMyNotes() {
+  $('#btnCreateNote').click(createNote);
+  $('#myNotes table tbody').on('click', '.btn-remove', removeNote);
+}
+
+function removeNote() {
+  var id = $(this).parent().parent().data('id');
+  hoodie.store.remove('note', id);
+  loadMyNotes();
+}
+
+function createNote() {
+  var note = {};
+  note.text = $('#txtNote').val();
+  note.title = $('#txtTitle').val();
+  note.owner = hoodie.account.username;
+  hoodie.store.add('note', note);
+  $('#txtTitle').val('');
+  $('#txtNote').val('');
+  loadMyNotes();
+}
+
+function loadMyNotes() {
+  //this will be change in the future - http://hood.ie/#docs - See 'Public Shares (Public User Stores)'
+  hoodie.store.findAll('note')
+  .then(function(notes) {
+    var $el = $('#myNotes table tbody');
+    $el.html('');
+    notes.forEach(loadMyNote);
+  });
+}
+
+function loadMyNote(note) {
+  if (note.owner == hoodie.account.username) {
+    var $el = $('#myNotes table tbody');
+    $el.append(
+      '<tr data-id="' + note.id + '">' +
+        '<td>' + note.title + '</td>' +
+        '<td>' + note.text + '</td>' +
+        '<td><button class="btn btn-danger btn-sm btn-remove">Remove</button></td>' +
+      '</tr>'
+    );
+  }
+}
+
+function signUp() {
+  var email = $('#txtEmail').val();
+  var password = $('#txtPassword').val();
+  hoodie.account.signUp(email, password)
+  .fail(function(err){
+    console.log('Log error...let the user know it failed');
+  });
+}
+
+function signIn() {
+  var email = $('#txtEmail').val();
+  var password = $('#txtPassword').val();
+  hoodie.account.signIn(email, password)
+  .fail(function(err){
+    console.log('Log error...let the user know it failed');
+  });
+}
+
+function showSignIn() {
+  hideElements();
+  $('#signForm').show();
+  $('.signin').show();
+  $('#btnSignIn').show();
+}
+
+function showSignUp() {
+  hideElements();
+  $('#signForm').show();
+  $('.signup').show();
+  $('#btnSignUp').show();
+}
+
+function showHome() {
+  setActiveMenu.call($('#menuHome'));
+  $('.jumbotron').show();
+}
+
+function showMyNotes() {
+  setActiveMenu.call($('#menuMyNotes'));
+  loadMyNotes();
+  $('#myNotes').show();
+}
+
+function logout() {
+  $('#headerUser').addClass('hidden');
+  $('#menuMyNotes').addClass('hidden');
+  hoodie.account.signOut();
+}
+
+function setActiveMenu() {
+  clearActiveMenu();
+  hideElements();
+  $(this).parent().addClass('active');
+}
+
+function clearActiveMenu() {
+  $('#menuHome').parent().removeClass('active');
+  $('#menuMyNotes').parent().removeClass('active');
+}
+
+function hideElements() {
+  $('.jumbotron').hide();
+  $('#signForm').hide();
+  $('#myNotes').hide();
+  $('.signup').hide();
+  $('.signin').hide();
+  $('#btnSignUp').hide();
+  $('#btnSignIn').hide();
+}

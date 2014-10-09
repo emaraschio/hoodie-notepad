@@ -1,6 +1,0 @@
-
-heart_beat_kill_pid = 17908
-heart_beat_timeout = 11
-heart: Tue Oct  7 17:58:30 2014: Erlang has closed.Terminated
-
-heart: Tue Oct  7 17:58:30 2014: Executed "/usr/bin/couchdb -k" -> 256. Terminating.
