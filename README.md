@@ -1,5 +1,5 @@
 # My Notepad
-# A sample App with Hoodie - Very fast app development
+A sample App with Hoodie - Very fast app development
 
 ## Installation
 
